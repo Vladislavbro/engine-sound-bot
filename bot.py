@@ -4,13 +4,14 @@ import logging
 import sys
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
-# TODO: Импортировать роутеры из хэндлеров
-# from handlers.start_handler import start_router
-# from handlers.game_handler import game_router
+# Импортируем роутеры из хэндлеров
+from handlers.start_handler import start_router
+from handlers.game_handler import game_router
 # from handlers.callback_handler import callback_router
 
 async def main() -> None:
@@ -19,12 +20,14 @@ async def main() -> None:
     storage = MemoryStorage()
 
     # Инициализация бота и диспетчера
-    bot = Bot(BOT_TOKEN, parse_mode=ParseMode.HTML)
+    # Задаем настройки по умолчанию через DefaultBotProperties
+    default_properties = DefaultBotProperties(parse_mode=ParseMode.HTML)
+    bot = Bot(token=BOT_TOKEN, default=default_properties)
     dp = Dispatcher(storage=storage)
 
-    # TODO: Подключить роутеры
-    # dp.include_router(start_router)
-    # dp.include_router(game_router)
+    # Подключаем роутеры
+    dp.include_router(start_router)
+    dp.include_router(game_router)
     # dp.include_router(callback_router)
 
     # Запуск бота
