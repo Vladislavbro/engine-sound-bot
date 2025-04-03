@@ -31,35 +31,50 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
 
     user_data = await state.get_data()
     current_score = user_data.get('score', 0)
+    question_index = user_data.get('question_index', 0) # Получаем текущий индекс ВОПРОСА (он уже +1 от реального)
+    question_list = user_data.get('questions', [])
+    total_questions = len(question_list)
 
     engine_info = ENGINES_DATA[correct_answer]
-    sound = FSInputFile(engine_info["sound_file"])
+    # Убрали sound, так как он больше не нужен здесь
     image = FSInputFile(engine_info["image_file"])
     result_message = ""
 
     if selected_option == correct_answer:
         result_message = f"✅ Правильно! Это {correct_answer} ({engine_info['car']})."
         current_score += 1
+        # Обновляем счет СРАЗУ, чтобы он был правильным для финального сообщения
         await state.update_data(score=current_score)
     else:
         result_message = f"❌ Неправильно. Это был {correct_answer} ({engine_info['car']})."
 
-    # Пытаемся отредактировать предыдущее сообщение, убрав клавиатуру
     if callback.message:
         try:
             await callback.message.edit_reply_markup(reply_markup=None)
         except TelegramBadRequest as e:
-            # Сообщение могло быть удалено или изменено, игнорируем ошибку
             print(f"Error editing message reply markup: {e}")
 
-        # Отправляем результат и картинку (звук больше не отправляем)
+        # Отправляем результат и картинку
         await bot.send_message(callback.message.chat.id, result_message)
         await bot.send_photo(callback.message.chat.id, photo=image)
 
-        # Отправляем кнопку "Дальше" с отступом
-        await bot.send_message(callback.message.chat.id, "\n\nГотов к следующему?", reply_markup=get_next_keyboard())
-        # Сбрасываем состояние, чтобы обработать нажатие "Дальше"
-        await state.set_state(None) # Сбрасываем состояние, чтобы колбэк "next_question" сработал
+        # --- Добавлено: Проверка на последний вопрос --- H
+        # question_index содержит номер СЛЕДУЮЩЕГО вопроса (т.к. мы делаем +1 в send_question)
+        # Значит, если он равен total_questions, текущий ответ был на последний вопрос.
+        if question_index >= total_questions:
+            # Сразу показываем финальный результат
+            await bot.send_message(
+                callback.message.chat.id,
+                f"\n\nИгра окончена! Твой результат: {current_score} из {total_questions} угаданных моторов.",
+                reply_markup=get_play_again_keyboard()
+            )
+            await state.clear()
+            await state.set_state(None)
+        else:
+            # Если это был НЕ последний вопрос, отправляем кнопку "Дальше"
+            await bot.send_message(callback.message.chat.id, "\n\nГотов к следующему?", reply_markup=get_next_keyboard())
+            await state.set_state(None) # Сбрасываем состояние для кнопки "Дальше"
+        # --------------------------------------------------
 
 
 # Обработчик кнопки "Дальше" (callback_data="next_question")

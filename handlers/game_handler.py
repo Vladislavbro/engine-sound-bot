@@ -18,47 +18,46 @@ async def send_question(chat_id: int, bot: Bot, state: FSMContext):
     question_list = user_data.get('questions', [])
     current_score = user_data.get('score', 0)
     question_index = user_data.get('question_index', 0)
+    total_questions = len(question_list)
 
-    if question_index >= len(question_list):
-        # Игра окончена
+    # Код для завершения игры (если вопросы кончились) остается на всякий случай,
+    # но по новой логике мы должны попасть сюда только если что-то пошло не так.
+    if question_index >= total_questions:
         await bot.send_message(
             chat_id,
-            f"Игра окончена! Твой результат: {current_score} из {len(question_list)} угаданных моторов.",
+            f"Игра окончена! Твой результат: {current_score} из {total_questions} угаданных моторов.",
             reply_markup=get_play_again_keyboard()
         )
-        await state.clear() # Очищаем состояние
-        await state.set_state(None) # Выходим из состояния игры
+        await state.clear()
+        await state.set_state(None)
         return
 
-    # Отправка номера вопроса и счета
-    total_questions = len(question_list)
-    await bot.send_message(
-        chat_id,
-        f"Вопрос {question_index + 1} из {total_questions}.\nПравильных ответов: {current_score}"
-    )
-
-    # Получаем следующий вопрос (тип мотора)
+    # Получаем данные для текущего вопроса
     correct_answer = question_list[question_index]
     engine_info = ENGINES_DATA[correct_answer]
-
-    # Генерируем варианты ответа
     options = get_random_options(correct_answer, ENGINE_TYPES)
-
-    # Создаем клавиатуру
     keyboard = get_game_keyboard(options, correct_answer)
+    unknown_car_image = FSInputFile("media/images/unknown_car.png")
+    sound = FSInputFile(engine_info["sound_file"])
 
-    # Отправка картинки unknown_car.jpeg
-    unknown_car_image = FSInputFile("media/images/unknown_car.jpeg")
+    # --- Измененный порядок отправки --- H
+    # 1. Картинка unknown_car
     await bot.send_photo(chat_id, photo=unknown_car_image)
 
-    # Отправляем звук
-    sound = FSInputFile(engine_info["sound_file"])
+    # 2. Номер вопроса и счет (если не первый вопрос)
+    question_number_message = f"Вопрос {question_index + 1} из {total_questions}."
+    if question_index > 0: # Не показываем счет на первом вопросе
+        question_number_message += f"\nПравильных ответов: {current_score}"
+    await bot.send_message(chat_id, question_number_message)
+
+    # 3. Звук мотора
     await bot.send_voice(chat_id, voice=sound)
 
-    # Отправляем текст вопроса с клавиатурой
+    # 4. Текст вопроса и кнопки вариантов
     await bot.send_message(chat_id, "Какой это мотор?", reply_markup=keyboard)
+    # -----------------------------------
 
-    # Обновляем состояние: номер вопроса и правильный ответ для проверки
+    # Обновляем состояние: номер вопроса для следующего шага и правильный ответ для проверки
     await state.update_data(question_index=question_index + 1, current_correct_answer=correct_answer)
     await state.set_state(GameState.in_game)
 
