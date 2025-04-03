@@ -28,7 +28,7 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
 
     # Извлекаем данные из callback_data
     # Формат: "answer:выбранный_ответ:правильный_ответ"
-    _, selected_option, correct_answer = callback.data.split(":")
+    _, selected_option, correct_answer_key = callback.data.split(":") # Переименовали в key
 
     user_data = await state.get_data()
     current_score = user_data.get('score', 0)
@@ -38,19 +38,26 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
     # Получаем ID сообщений вопроса для удаления
     message_ids_to_delete = user_data.get('question_message_ids', [])
 
-    engine_info = ENGINES_DATA[correct_answer]
+    # Получаем всю информацию о правильном моторе
+    engine_info = ENGINES_DATA[correct_answer_key]
     image = FSInputFile(engine_info["image_file"])
     # --- Добавлено: Получаем путь к правильному звуку --- H
     correct_sound = FSInputFile(engine_info["sound_file"])
     # ----------------------------------------------------
+    # --- Получаем нужные строки для сообщения --- H
+    display_name = engine_info.get("display_name", correct_answer_key) # Отображаемое имя мотора
+    car_name = engine_info.get("car", "") # Название машины
+    # -----------------------------------------
     result_message = ""
 
-    if selected_option == correct_answer:
-        result_message = f"✅ Правильно! Это {correct_answer} ({engine_info['car']})."
+    if selected_option == correct_answer_key: # Используем key
+        # --- Формируем новое сообщение (правильно) --- H
+        result_message = f"✅ Правильно! Это {display_name} {car_name}."
         current_score += 1
         await state.update_data(score=current_score)
     else:
-        result_message = f"❌ Неправильно. Это был {correct_answer} ({engine_info['car']})."
+        # --- Формируем новое сообщение (неправильно) --- H
+        result_message = f"❌ Неправильно. Это был {display_name} {car_name}."
 
     # Удаление сообщений вопроса
     if callback.message:
