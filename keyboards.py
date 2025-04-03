@@ -28,7 +28,7 @@ def get_game_keyboard(options: list[str], correct_answer: str) -> InlineKeyboard
 def get_play_again_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text="Сыграть ещё", callback_data="start_game"),
+        InlineKeyboardButton(text="Сыграть ещё", callback_data="play_again"),
         InlineKeyboardButton(text="Завершить", callback_data="quit_game")
     )
     return builder.as_markup() 
