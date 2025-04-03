@@ -32,12 +32,12 @@ ENGINES_DATA = {
     "V10": {
         "car": "Lexus LFA",
         "sound_file": "media/sounds/lexus_lfa.mp3",
-        "image_file": "media/images/lexus_lfa.jpg"
+        "image_file": "media/images/lexus_lfa.jpeg"
     },
     "Атмо V12": {
         "car": "Ferrari F12 Berlinetta",
         "sound_file": "media/sounds/ferrari_f12.mp3",
-        "image_file": "media/images/ferrari_f12.jpg"
+        "image_file": "media/images/ferrari_f12.jpeg"
     },
     "V16": {
         "car": "Bugatti Tourbillon",

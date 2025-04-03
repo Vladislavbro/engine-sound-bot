@@ -12,7 +12,7 @@ from config import BOT_TOKEN
 # Импортируем роутеры из хэндлеров
 from handlers.start_handler import start_router
 from handlers.game_handler import game_router
-# from handlers.callback_handler import callback_router
+from handlers.callback_handler import callback_router
 
 async def main() -> None:
     # Используем MemoryStorage для хранения состояний FSM в памяти
@@ -28,7 +28,7 @@ async def main() -> None:
     # Подключаем роутеры
     dp.include_router(start_router)
     dp.include_router(game_router)
-    # dp.include_router(callback_router)
+    dp.include_router(callback_router)
 
     # Запуск бота
     await dp.start_polling(bot)

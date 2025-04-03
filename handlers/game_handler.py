@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 
 # Импортируем данные, клавиатуры, состояния и утилиты
 from data import ENGINES_DATA, ENGINE_TYPES
-from keyboards import get_game_keyboard, get_play_again_keyboard # get_next_keyboard пока не нужен
+from keyboards import get_game_keyboard, get_play_again_keyboard
 from states import GameState
 from utils import get_random_options
 
@@ -23,11 +23,19 @@ async def send_question(chat_id: int, bot: Bot, state: FSMContext):
         # Игра окончена
         await bot.send_message(
             chat_id,
-            f"Игра окончена! Ты угадал {current_score} из {len(question_list)} типов моторов.",
+            f"Игра окончена! Твой результат: {current_score} из {len(question_list)} угаданных моторов.",
             reply_markup=get_play_again_keyboard()
         )
         await state.clear() # Очищаем состояние
+        await state.set_state(None) # Выходим из состояния игры
         return
+
+    # Отправка номера вопроса и счета
+    total_questions = len(question_list)
+    await bot.send_message(
+        chat_id,
+        f"Вопрос {question_index + 1} из {total_questions}.\nПравильных ответов: {current_score}"
+    )
 
     # Получаем следующий вопрос (тип мотора)
     correct_answer = question_list[question_index]
@@ -39,39 +47,20 @@ async def send_question(chat_id: int, bot: Bot, state: FSMContext):
     # Создаем клавиатуру
     keyboard = get_game_keyboard(options, correct_answer)
 
+    # Отправка картинки unknown_car.jpeg
+    unknown_car_image = FSInputFile("media/images/unknown_car.jpeg")
+    await bot.send_photo(chat_id, photo=unknown_car_image)
+
     # Отправляем звук
     sound = FSInputFile(engine_info["sound_file"])
     await bot.send_voice(chat_id, voice=sound)
 
-    # Отправляем вопрос с клавиатурой
+    # Отправляем текст вопроса с клавиатурой
     await bot.send_message(chat_id, "Какой это мотор?", reply_markup=keyboard)
 
     # Обновляем состояние: номер вопроса и правильный ответ для проверки
     await state.update_data(question_index=question_index + 1, current_correct_answer=correct_answer)
     await state.set_state(GameState.in_game)
 
-
-# Обработчик нажатия кнопки "Начать" (callback_data="start_game")
-@game_router.callback_query(F.data == "start_game")
-async def start_game_callback_handler(callback: CallbackQuery, bot: Bot, state: FSMContext):
-    """Начинает игру при нажатии кнопки 'Начать'."""
-    await callback.answer() # Отвечаем на колбэк
-    if callback.message:
-        await callback.message.edit_reply_markup() # Убираем кнопку "Начать"
-
-    # Перемешиваем типы моторов для нового раунда
-    shuffled_engines = random.sample(ENGINE_TYPES, len(ENGINE_TYPES))
-
-    # Сохраняем список вопросов и начальный счет в состояние
-    await state.update_data(questions=shuffled_engines, score=0, question_index=0)
-
-    # Отправляем первый вопрос
-    if callback.message:
-        await send_question(callback.message.chat.id, bot, state)
-
-# TODO: Добавить обработчик нажатия кнопки "Дальше"
-# @game_router.message(F.text == "Дальше") # Или использовать CallbackQuery
-async def next_question_handler(message: Message, state: FSMContext):
-    """Отправляет следующий вопрос."""
-    # Логика отправки следующего вопроса
-    pass 
+# Убрали обработчики start_game_callback_handler и next_question_handler,
+# так как они теперь находятся в callback_handler.py 
