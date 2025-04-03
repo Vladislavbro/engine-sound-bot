@@ -22,12 +22,6 @@ def get_game_keyboard(options: list[str], correct_answer: str) -> InlineKeyboard
     builder.adjust(2)
     return builder.as_markup()
 
-# TODO: Создать клавиатуру "Дальше"
-def get_next_keyboard() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.add(InlineKeyboardButton(text="Дальше", callback_data="next_question"))
-    return builder.as_markup()
-
 # TODO: Создать клавиатуру "Сыграть еще?"
 def get_play_again_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()

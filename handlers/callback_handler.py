@@ -4,6 +4,7 @@ from aiogram import Bot, Router, F
 from aiogram.types import CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.enums import ParseMode # Добавил ParseMode для HTML в quit_game
 
 # TODO: Импортировать необходимые данные, клавиатуры, состояния
 # from data import ENGINES_DATA
@@ -12,9 +13,9 @@ from aiogram.exceptions import TelegramBadRequest
 
 # Импортируем необходимые данные, клавиатуры, состояния
 from data import ENGINES_DATA, ENGINE_TYPES # Добавили ENGINE_TYPES
-from keyboards import get_next_keyboard, get_play_again_keyboard # Добавили get_play_again_keyboard
+from keyboards import get_play_again_keyboard # Убрали get_next_keyboard
 from states import GameState
-# Импортируем функцию отправки вопроса для кнопки "Дальше"
+# Импортируем функцию отправки вопроса
 from handlers.game_handler import send_question
 
 callback_router = Router() # Создаем роутер для этого хэндлера
@@ -22,8 +23,8 @@ callback_router = Router() # Создаем роутер для этого хэ�
 # Обработчик колбэков с ответами (срабатывает в состоянии in_game)
 @callback_router.callback_query(F.data.startswith("answer:"), GameState.in_game)
 async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMContext):
-    """Обрабатывает ответ пользователя."""
-    await callback.answer() # Отвечаем на колбэк, чтобы убрать "часики"
+    """Обрабатывает ответ, удаляет сообщения вопроса, показывает результат и сразу отправляет следующий вопрос."""
+    await callback.answer() # Отвечаем на колбэк
 
     # Извлекаем данные из callback_data
     # Формат: "answer:выбранный_ответ:правильный_ответ"
@@ -31,68 +32,64 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
 
     user_data = await state.get_data()
     current_score = user_data.get('score', 0)
-    question_index = user_data.get('question_index', 0) # Получаем текущий индекс ВОПРОСА (он уже +1 от реального)
+    question_index = user_data.get('question_index', 0)
     question_list = user_data.get('questions', [])
     total_questions = len(question_list)
+    # Получаем ID сообщений вопроса для удаления
+    message_ids_to_delete = user_data.get('question_message_ids', [])
 
     engine_info = ENGINES_DATA[correct_answer]
-    # Убрали sound, так как он больше не нужен здесь
     image = FSInputFile(engine_info["image_file"])
+    # --- Добавлено: Получаем путь к правильному звуку --- H
+    correct_sound = FSInputFile(engine_info["sound_file"])
+    # ----------------------------------------------------
     result_message = ""
 
     if selected_option == correct_answer:
         result_message = f"✅ Правильно! Это {correct_answer} ({engine_info['car']})."
         current_score += 1
-        # Обновляем счет СРАЗУ, чтобы он был правильным для финального сообщения
         await state.update_data(score=current_score)
     else:
         result_message = f"❌ Неправильно. Это был {correct_answer} ({engine_info['car']})."
 
+    # Удаление сообщений вопроса
     if callback.message:
+        chat_id = callback.message.chat.id # Сохраняем chat_id перед удалением
         try:
-            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.delete()
         except TelegramBadRequest as e:
-            print(f"Error editing message reply markup: {e}")
+            print(f"Error deleting callback message: {e}")
+        for msg_id in message_ids_to_delete:
+            try:
+                await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            except TelegramBadRequest as e:
+                # Сообщение могло быть уже удалено, или что-то пошло не так, игнорируем
+                print(f"Error deleting message {msg_id}: {e}")
 
-        # Отправляем результат и картинку
-        await bot.send_message(callback.message.chat.id, result_message)
-        await bot.send_photo(callback.message.chat.id, photo=image)
+        # Отправляем результат, картинку и ПРАВИЛЬНЫЙ ЗВУК
+        await bot.send_message(chat_id, result_message)
+        await bot.send_photo(chat_id, photo=image)
+        await bot.send_voice(chat_id, voice=correct_sound)
 
-        # --- Добавлено: Проверка на последний вопрос --- H
-        # question_index содержит номер СЛЕДУЮЩЕГО вопроса (т.к. мы делаем +1 в send_question)
-        # Значит, если он равен total_questions, текущий ответ был на последний вопрос.
+        # Проверка на последний вопрос
         if question_index >= total_questions:
-            # Сразу показываем финальный результат
+            # Показываем финальный результат
             await bot.send_message(
-                callback.message.chat.id,
+                chat_id,
                 f"\n\nИгра окончена! Твой результат: {current_score} из {total_questions} угаданных моторов.",
                 reply_markup=get_play_again_keyboard()
             )
             await state.clear()
             await state.set_state(None)
         else:
-            # Если это был НЕ последний вопрос, отправляем кнопку "Дальше"
-            await bot.send_message(callback.message.chat.id, "\n\nГотов к следующему?", reply_markup=get_next_keyboard())
-            await state.set_state(None) # Сбрасываем состояние для кнопки "Дальше"
-        # --------------------------------------------------
+            # --- Изменено: Сразу отправляем следующий вопрос --- H
+            # Убрали отправку "Готов к следующему?" и кнопки "Дальше"
+            # Не сбрасываем состояние здесь, send_question сам установит GameState.in_game
+            await send_question(chat_id, bot, state)
+            # ----------------------------------------------------
 
 
-# Обработчик кнопки "Дальше" (callback_data="next_question")
-@callback_router.callback_query(F.data == "next_question")
-async def next_question_callback_handler(callback: CallbackQuery, bot: Bot, state: FSMContext):
-    """Отправляет следующий вопрос при нажатии 'Дальше'."""
-    await callback.answer()
-    if callback.message:
-        # Убираем кнопку "Дальше"
-        try:
-            await callback.message.edit_reply_markup(reply_markup=None)
-        except TelegramBadRequest as e:
-            print(f"Error editing message reply markup: {e}")
-        # Отправляем следующий вопрос
-        await send_question(callback.message.chat.id, bot, state)
-
-
-# Определяем обработчик для "Начать" / "Сыграть еще" прямо здесь
+# Обработчик для "Начать" / "Сыграть еще"
 async def start_game_handler_local(callback: CallbackQuery, bot: Bot, state: FSMContext):
     """Начинает новую игру при нажатии кнопки 'Начать' или 'Сыграть еще'."""
     await callback.answer() # Отвечаем на колбэк
@@ -122,5 +119,6 @@ async def quit_game_callback_handler(callback: CallbackQuery, state: FSMContext)
     """Завершает игру и очищает состояние."""
     await callback.answer()
     if callback.message:
-        await callback.message.edit_text("Спасибо за игру! До свидания!") # Редактируем сообщение
+        # Используем parse_mode=HTML для жирного шрифта
+        await callback.message.edit_text("Спасибо за игру! 👋\nНадеюсь, тебе понравилось. До скорого!", parse_mode=ParseMode.HTML)
     await state.clear() 
