@@ -80,20 +80,50 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
 
         # Проверка на последний вопрос
         if question_index >= total_questions:
-            # Показываем финальный результат
+            # --- Изменено: Персонализированный финал --- H
+            final_text = ""
+            final_image_path = ""
+
+            if 0 <= current_score <= 4:
+                final_image_path = "media/images/lada.jpeg"
+                final_text = (f"Ты набрал {current_score} из {total_questions}. Спасибо за игру! "
+                              f"В нашей игре никто не уходит без приза, поэтому мы дарим тебе заряженную двенашку. "
+                              f"А если хочешь знать о машинах больше — подисывайся на мой канал @poooweeeer.")
+            elif 5 <= current_score <= 7:
+                final_image_path = "media/images/miata.jpeg"
+                final_text = (f"Ты набрал {current_score} из {total_questions}. Похоже, ты разбираешься в автомобилях! "
+                              f"В нашей игре никто не уходит без приза, мы дарим тебе машину, которую выбирают только те, кто шарит."
+                              f"А если хочешь знать о машинах больше — подисывайся на мой канал @poooweeeer.")
+            elif current_score == 8: # Perfect score
+                final_image_path = "media/images/daytona.jpeg"
+                final_text = (f"Ты набрал 8 из 8! Браво, ты настоящая легенда автомобильного мира! "
+                              f"Ты достоин машины, которую поймут только ценители, Daytona SP3 твоя."
+                              f"А если хочешь знать о машинах еще больше — подисывайся на мой канал @poooweeeer.")
+            else: # Fallback (на случай непредвиденных ошибок)
+                final_text = f"Игра окончена! Твой результат: {current_score} из {total_questions} угаданных моторов."
+
+            # Отправляем финальную картинку, если она есть
+            if final_image_path:
+                try:
+                    final_image = FSInputFile(final_image_path)
+                    await bot.send_photo(chat_id, photo=final_image)
+                except Exception as e:
+                    print(f"Error sending final image {final_image_path}: {e}")
+                    # Если картинку отправить не удалось, отправим только текст
+                    final_text = f"Игра окончена! Твой результат: {current_score} из {total_questions} угаданных моторов."
+
+            # Отправляем финальный текст с кнопками
             await bot.send_message(
                 chat_id,
-                f"\n\nИгра окончена! Твой результат: {current_score} из {total_questions} угаданных моторов.",
+                final_text,
                 reply_markup=get_play_again_keyboard()
             )
+            # ---------------------------------------------
             await state.clear()
             await state.set_state(None)
         else:
-            # --- Изменено: Сразу отправляем следующий вопрос --- H
-            # Убрали отправку "Готов к следующему?" и кнопки "Дальше"
-            # Не сбрасываем состояние здесь, send_question сам установит GameState.in_game
+            # Сразу отправляем следующий вопрос
             await send_question(chat_id, bot, state)
-            # ----------------------------------------------------
 
 
 # Обработчик для "Начать" / "Сыграть еще"
