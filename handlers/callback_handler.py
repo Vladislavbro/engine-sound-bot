@@ -149,19 +149,4 @@ async def play_again_callback(callback: CallbackQuery, bot: Bot, state: FSMConte
 
     await state.clear() # Очищаем состояние в любом случае
 
-# Обработчик кнопки "Завершить"
-@callback_router.callback_query(F.data == "quit_game")
-async def quit_game_callback_handler(callback: CallbackQuery, bot: Bot, state: FSMContext):
-    """Завершает игру и очищает состояние, НЕ удаляя сообщения игры."""
-    await callback.answer()
-    # chat_id = callback.message.chat.id # chat_id не нужен здесь
-
-    # Редактируем сообщение с кнопкой "Завершить" на прощальное
-    if callback.message:
-        try:
-            await callback.message.edit_text("Спасибо за игру! 👋\nНадеюсь, тебе понравилось. До скорого!", parse_mode=ParseMode.HTML)
-        except (TelegramBadRequest, TelegramForbiddenError) as e:
-             print(f"Could not edit quit_game message: {e}")
-             # Если редактирование не удалось, ничего страшного
-
-    await state.clear() # Очищаем состояние в самом конце 
+# УДАЛЕН обработчик quit_game_callback_handler 
