@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+# Добавляем импорт основного словаря
+from data import ENGINES_DATA
 
 # TODO: Создать клавиатуру для старта игры
 def get_start_keyboard() -> InlineKeyboardMarkup:
@@ -12,13 +14,13 @@ def get_start_keyboard() -> InlineKeyboardMarkup:
 def get_game_keyboard(options: list[str], correct_answer: str) -> InlineKeyboardMarkup:
     """Генерирует клавиатуру с 4 вариантами ответа."""
     builder = InlineKeyboardBuilder()
-    for option in options:
-        # В callback_data можно передать и правильный ответ для проверки
+    for option_key in options: # option_key теперь - это идентификатор, например "V8_Supercharged"
+        # Получаем отображаемое имя из словаря данных
+        display_name = ENGINES_DATA[option_key].get("display_name", option_key)
         builder.add(InlineKeyboardButton(
-            text=option,
-            callback_data=f"answer:{option}:{correct_answer}" # Пример callback_data
+            text=display_name, # Используем display_name для текста
+            callback_data=f"answer:{option_key}:{correct_answer}" # В callback используем простой ключ
         ))
-    # Располагаем кнопки, например, по 2 в ряд
     builder.adjust(2)
     return builder.as_markup()
 
