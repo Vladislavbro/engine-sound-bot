@@ -47,7 +47,7 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id # Получаем user_id здесь
 
-    # --- Восстановлено: Удаление сообщений вопроса ---
+    # --- Удаление сообщений вопроса ---
     msg_ids_to_delete = user_data.get('question_msg_ids_to_delete', [])
     if msg_ids_to_delete:
         for msg_id in msg_ids_to_delete:
