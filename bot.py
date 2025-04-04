@@ -13,6 +13,8 @@ from config import BOT_TOKEN
 from handlers.start_handler import start_router
 from handlers.game_handler import game_router
 from handlers.callback_handler import callback_router
+# --- Добавлено: Импорт инициализации БД --- H
+from database import init_db
 
 async def main() -> None:
     # Используем MemoryStorage для хранения состояний FSM в памяти
@@ -29,6 +31,10 @@ async def main() -> None:
     dp.include_router(start_router)
     dp.include_router(game_router)
     dp.include_router(callback_router)
+
+    # --- Добавлено: Инициализация БД перед запуском --- H
+    init_db()
+    # ----------------------------------------------
 
     # Запуск бота
     await dp.start_polling(bot)

@@ -5,6 +5,7 @@ from aiogram.types import CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.enums import ParseMode
+import logging
 
 # Импортируем данные, клавиатуры, состояния
 from data import ENGINES_DATA, ENGINE_TYPES
@@ -13,6 +14,8 @@ from states import GameState
 # Импортируем функцию отправки вопроса
 from handlers.game_handler import send_question
 # Убраны импорты из start_handler
+# --- Добавлено: Импорт функции записи в БД --- H
+from database import log_game_start, log_game_result
 
 callback_router = Router()
 
@@ -26,7 +29,8 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
     question_index = user_data.get('question_index', 0)
     question_list = user_data.get('questions', [])
     total_questions = len(question_list)
-    msg_ids_to_delete = user_data.get('question_msg_ids_to_delete', [])
+    # --- Получаем start_id из состояния --- H
+    current_start_id = user_data.get('current_start_id') 
     engine_info = ENGINES_DATA[correct_answer_key]
     image = FSInputFile(engine_info["image_file"])
     correct_sound = FSInputFile(engine_info["sound_file"])
@@ -41,17 +45,13 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
         result_message = f"❌ Неправильно. Это был {display_name} {car_name}."
     
     chat_id = callback.message.chat.id
+    user_id = callback.from_user.id # Получаем user_id здесь
     if callback.message:
         try:
-            await callback.message.delete()
+            await callback.message.delete() # Удаляем сообщение с кнопками
         except (TelegramBadRequest, TelegramForbiddenError) as e:
             print(f"Error deleting callback message: {e}")
-
-        for msg_id in msg_ids_to_delete:
-            try:
-                await bot.delete_message(chat_id=chat_id, message_id=msg_id)
-            except (TelegramBadRequest, TelegramForbiddenError) as e:
-                print(f"Error deleting question message {msg_id}: {e}")
+        # --- Удаление сообщений вопроса БОЛЬШЕ НЕ НУЖНО, т.к. оставляем результат --- H
 
     await bot.send_message(chat_id, result_message)
     await bot.send_photo(chat_id, photo=image)
@@ -59,6 +59,16 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
 
     # Проверка на последний вопрос
     if question_index >= total_questions:
+        # --- Логируем результат игры --- H
+        try:
+            if current_start_id: # Убедимся, что start_id есть
+                log_game_result(start_id=current_start_id, user_id=user_id, score=current_score, total_questions=total_questions)
+            else:
+                logging.warning(f"Could not log game result for user {user_id} because start_id was missing in state.")
+        except Exception as e:
+            logging.error(f"Failed to log game result to DB for user {user_id}: {e}")
+        # ------------------------------
+
         final_text = ""
         final_image_path = ""
         # (if/elif/else для счета)
@@ -88,16 +98,14 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
                 print(f"Error sending final image {final_image_path}: {e}")
                 final_text = f"Игра окончена! Твой результат: {current_score} из {total_questions} угаданных моторов."
 
-        # --- Отправляем финальный текст С КНОПКАМИ "Сыграть еще" / "Завершить" --- H
         await bot.send_message(
             chat_id,
             final_text,
-            reply_markup=get_play_again_keyboard() # Возвращаем клавиатуру
+            reply_markup=get_play_again_keyboard()
         )
-        await state.clear() # Очищаем состояние ПОСЛЕ показа результата
+        await state.clear()
         await state.set_state(None)
     else:
-        # Сразу отправляем следующий вопрос
         await send_question(chat_id, bot, state)
 
 # Обработчик ТОЛЬКО для САМОЙ ПЕРВОЙ кнопки "Начать"
@@ -106,23 +114,26 @@ async def start_game_callback(callback: CallbackQuery, bot: Bot, state: FSMConte
     """Начинает игру при нажатии самой первой кнопки 'Начать'."""
     await callback.answer()
     chat_id = callback.message.chat.id
+    user_id = callback.from_user.id # Получаем user_id
 
-    # --- Заменяем удаление на редактирование (убираем кнопку) --- H
     if callback.message:
         try:
             await callback.message.edit_reply_markup(reply_markup=None)
         except (TelegramBadRequest, TelegramForbiddenError) as e:
             print(f"Could not edit start_game button message: {e}")
-    # ------------------------------------------------------------
 
-    # Инициализируем состояние для НОВОЙ игры
+    # --- Логируем старт игры и получаем start_id --- H
+    start_id = log_game_start(user_id=user_id)
+    # -------------------------------------------
+
+    # Инициализируем состояние для НОВОЙ игры, включая start_id
     await state.set_data({
         'questions': random.sample(ENGINE_TYPES, len(ENGINE_TYPES)),
         'score': 0,
         'question_index': 0,
+        'current_start_id': start_id # Сохраняем ID старта
     })
 
-    # Отправляем первый вопрос
     await send_question(chat_id, bot, state)
 
 # --- Обработчик для кнопки "Сыграть ещё" --- H
