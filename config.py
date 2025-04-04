@@ -14,7 +14,7 @@ print(f"[DEBUG] Loaded BOT_TOKEN_DEBUG: {'Set' if BOT_TOKEN_DEBUG else 'Not set'
 ADMIN_ID = os.getenv("ADMIN_ID")
 
 # --- Выбираем токен для использования ---
-USE_DEBUG_TOKEN = True # Поставь False перед деплоем на сервер
+USE_DEBUG_TOKEN = False # Поставь False перед деплоем на сервер
 
 # Теперь BOT_TOKEN будет содержать актуальный токен
 if USE_DEBUG_TOKEN:
