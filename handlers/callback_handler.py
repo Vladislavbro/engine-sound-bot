@@ -90,17 +90,17 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
             final_image_path = "media/images/lada.jpeg"
             final_text = (f"Ты набрал {current_score} из {total_questions}. Спасибо за игру! "
                           f"В нашей игре никто не уходит без приза, поэтому мы дарим тебе заряженную двенашку. "
-                          f"А если хочешь знать о машинах больше — подисывайся на мой канал @poooweeeer.")
+                          f"А если хочешь знать о машинах больше — подисывайся на канал автора этой игры: @poooweeeer.")
         elif 5 <= current_score <= 7:
             final_image_path = "media/images/miata.jpeg"
             final_text = (f"Ты набрал {current_score} из {total_questions}. Похоже, ты разбираешься в автомобилях! "
                           f"В нашей игре никто не уходит без приза, мы дарим тебе машину, которую выбирают только те, кто шарит."
-                          f"А если хочешь знать о машинах больше — подисывайся на мой канал @poooweeeer.")
+                          f"А если хочешь знать о машинах больше — подисывайся на канал автора этой игры: @poooweeeer.")
         elif current_score == 8: # Perfect score
             final_image_path = "media/images/daytona.jpeg"
             final_text = (f"Ты набрал {current_score} из {total_questions}! Браво, ты настоящая легенда автомобильного мира! "
                           f"Ты достоин машины, которую поймут только ценители, Daytona SP3 твоя."
-                          f"А если хочешь знать о машинах еще больше — подисывайся на мой канал @poooweeeer.")
+                          f"А если хочешь знать о машинах еще больше — подисывайся на канал автора этой игры: @poooweeeer.")
         else:
             final_text = f"Игра окончена! Твой результат: {current_score} из {total_questions} угаданных моторов."
 
