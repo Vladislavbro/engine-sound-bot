@@ -1,6 +1,6 @@
 # Угадай мотор по звуку - Телеграм бот
 
-[![Бот в Telegram](https://img.shields.io/badge/Telegram-Bot-blue.svg?style=flat-square&logo=telegram)](https://t.me/YourBotUsername) <!-- Замените YourBotUsername на имя вашего бота -->
+[![Бот в Telegram](https://img.shields.io/badge/Telegram-Bot-blue.svg?style=flat-square&logo=telegram)](https://t.me/engine_game_bot) <!-- Замените YourBotUsername на имя вашего бота -->
 
 Телеграм-бот, предлагающий увлекательную игру: угадать тип автомобильного мотора по его характерному звуку.
 
