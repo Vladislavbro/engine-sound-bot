@@ -24,7 +24,7 @@
     *   Перейдите в директорию, где будет жить ваш бот (например, `/home/your_user/bots`).
     *   Клонируйте репозиторий:
         ```bash
-        git clone https://github.com/your_username/engine-sound-bot.git # Замените на ваш URL
+        git clone https://github.com/Vladislavbro/engine-sound-bot 
         cd engine-sound-bot
         ```
 
