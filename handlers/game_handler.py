@@ -3,17 +3,18 @@ import random
 from aiogram import Bot, Router, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
+from typing import List
 
 # Импортируем данные, клавиатуры, состояния и утилиты
 from data import ENGINES_DATA, ENGINE_TYPES
-from keyboards import get_game_keyboard, get_play_again_keyboard
+from keyboards import get_game_keyboard
 from states import GameState
 from utils import get_random_options
 
 game_router = Router()
 
 async def send_question(chat_id: int, bot: Bot, state: FSMContext):
-    """Отправляет следующий вопрос пользователю."""
+    """Отправляет следующий вопрос пользователю и сохраняет ID сообщений вопроса."""
     user_data = await state.get_data()
     question_list = user_data.get('questions', [])
     current_score = user_data.get('score', 0)
@@ -40,27 +41,34 @@ async def send_question(chat_id: int, bot: Bot, state: FSMContext):
     unknown_car_image = FSInputFile("media/images/unknown_engine.png")
     sound = FSInputFile(engine_info["sound_file"])
 
-    # --- Отправка сообщений вопроса --- H
+    # --- Отправка сообщений вопроса и сохранение их ID --- H
+    msg_ids_to_delete_for_this_q: List[int] = []
+
     # 1. Картинка unknown_car
-    await bot.send_photo(chat_id, photo=unknown_car_image)
+    msg1 = await bot.send_photo(chat_id, photo=unknown_car_image)
+    msg_ids_to_delete_for_this_q.append(msg1.message_id)
 
     # 2. Номер вопроса и счет (если не первый вопрос)
+    msg2 = None
     question_number_message = f"Вопрос {question_index + 1} из {total_questions}."
     if question_index > 0:
         question_number_message += f"\nПравильных ответов: {current_score}"
-    await bot.send_message(chat_id, question_number_message)
+    msg2 = await bot.send_message(chat_id, question_number_message)
+    msg_ids_to_delete_for_this_q.append(msg2.message_id)
 
-    # 3. Звук мотора
-    await bot.send_voice(chat_id, voice=sound)
+    # 3. Звук мотора (вопроса)
+    msg3 = await bot.send_voice(chat_id, voice=sound)
+    msg_ids_to_delete_for_this_q.append(msg3.message_id)
 
-    # 4. Текст вопроса и кнопки вариантов
+    # 4. Текст вопроса и кнопки вариантов (его ID не сохраняем, т.к. удаляется через callback.message)
     await bot.send_message(chat_id, "Какой это мотор?", reply_markup=keyboard)
-    # -----------------------------------
+    # ----------------------------------------------------
 
-    # Обновляем состояние: только номер вопроса и правильный ответ
+    # Обновляем состояние: номер вопроса, правильный ответ и ID сообщений вопроса для удаления
     await state.update_data(
         question_index=question_index + 1,
         current_correct_answer=correct_answer,
+        question_msg_ids_to_delete=msg_ids_to_delete_for_this_q
     )
     await state.set_state(GameState.in_game)
 

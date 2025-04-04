@@ -18,7 +18,7 @@ callback_router = Router()
 
 @callback_router.callback_query(F.data.startswith("answer:"), GameState.in_game)
 async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMContext):
-    """Обрабатывает ответ, показывает результат и сразу отправляет след. вопрос/финал."""
+    """Обрабатывает ответ, УДАЛЯЕТ сообщения вопроса, показывает результат и отправляет след. вопрос/финал."""
     await callback.answer()
     _, selected_option, correct_answer_key = callback.data.split(":")
     user_data = await state.get_data()
@@ -26,6 +26,7 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
     question_index = user_data.get('question_index', 0)
     question_list = user_data.get('questions', [])
     total_questions = len(question_list)
+    msg_ids_to_delete = user_data.get('question_msg_ids_to_delete', [])
     engine_info = ENGINES_DATA[correct_answer_key]
     image = FSInputFile(engine_info["image_file"])
     correct_sound = FSInputFile(engine_info["sound_file"])
@@ -45,6 +46,12 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
             await callback.message.delete()
         except (TelegramBadRequest, TelegramForbiddenError) as e:
             print(f"Error deleting callback message: {e}")
+
+        for msg_id in msg_ids_to_delete:
+            try:
+                await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            except (TelegramBadRequest, TelegramForbiddenError) as e:
+                print(f"Error deleting question message {msg_id}: {e}")
 
     await bot.send_message(chat_id, result_message)
     await bot.send_photo(chat_id, photo=image)
