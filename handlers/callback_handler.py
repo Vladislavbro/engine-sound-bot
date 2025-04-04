@@ -30,7 +30,7 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
     question_list = user_data.get('questions', [])
     total_questions = len(question_list)
     # --- Получаем start_id из состояния --- H
-    current_start_id = user_data.get('current_start_id') 
+    current_start_id = user_data.get('current_start_id')
     engine_info = ENGINES_DATA[correct_answer_key]
     image = FSInputFile(engine_info["image_file"])
     correct_sound = FSInputFile(engine_info["sound_file"])
@@ -43,16 +43,30 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
         await state.update_data(score=current_score)
     else:
         result_message = f"❌ Неправильно. Это был {display_name} {car_name}."
-    
+
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id # Получаем user_id здесь
+
+    # --- Восстановлено: Удаление сообщений вопроса ---
+    msg_ids_to_delete = user_data.get('question_msg_ids_to_delete', [])
+    if msg_ids_to_delete:
+        for msg_id in msg_ids_to_delete:
+            try:
+                await bot.delete_message(chat_id, msg_id)
+            except (TelegramBadRequest, TelegramForbiddenError) as e:
+                print(f"Could not delete message {msg_id} in chat {chat_id}: {e}")
+        # Очищаем список ID из состояния после попытки удаления
+        await state.update_data(question_msg_ids_to_delete=[])
+
+    # --- Удаление сообщения с кнопками ---
     if callback.message:
         try:
             await callback.message.delete() # Удаляем сообщение с кнопками
         except (TelegramBadRequest, TelegramForbiddenError) as e:
             print(f"Error deleting callback message: {e}")
-        # --- Удаление сообщений вопроса БОЛЬШЕ НЕ НУЖНО, т.к. оставляем результат --- H
+    # -------------------------------------
 
+    # Отправка результата
     await bot.send_message(chat_id, result_message)
     await bot.send_photo(chat_id, photo=image)
     await bot.send_voice(chat_id, voice=correct_sound)
@@ -87,9 +101,9 @@ async def process_answer_callback(callback: CallbackQuery, bot: Bot, state: FSMC
             final_text = (f"Ты набрал {current_score} из {total_questions}! Браво, ты настоящая легенда автомобильного мира! "
                           f"Ты достоин машины, которую поймут только ценители, Daytona SP3 твоя."
                           f"А если хочешь знать о машинах еще больше — подисывайся на мой канал @poooweeeer.")
-        else: 
+        else:
             final_text = f"Игра окончена! Твой результат: {current_score} из {total_questions} угаданных моторов."
-        
+
         if final_image_path:
             try:
                 final_image = FSInputFile(final_image_path)
@@ -131,7 +145,8 @@ async def start_game_callback(callback: CallbackQuery, bot: Bot, state: FSMConte
         'questions': random.sample(ENGINE_TYPES, len(ENGINE_TYPES)),
         'score': 0,
         'question_index': 0,
-        'current_start_id': start_id # Сохраняем ID старта
+        'current_start_id': start_id, # Сохраняем ID старта
+        'question_msg_ids_to_delete': [] # Инициализируем пустым списком при старте
     })
 
     await send_question(chat_id, bot, state)
