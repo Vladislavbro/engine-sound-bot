@@ -143,7 +143,7 @@ def get_stats(period: str = "all") -> dict:
         query_starts = "SELECT COUNT(*), COUNT(DISTINCT user_id) FROM game_starts"
         params_starts = []
         if start_dt and end_dt:
-            query_starts += " WHERE start_timestamp >= ? AND start_timestamp < ?" # Используем >= и < для полуинтервала
+            query_starts += " WHERE datetime(start_timestamp) >= datetime(?) AND datetime(start_timestamp) < datetime(?)"
             params_starts.extend([start_dt.isoformat(), end_dt.isoformat()])
 
         cursor.execute(query_starts, params_starts)
@@ -156,7 +156,7 @@ def get_stats(period: str = "all") -> dict:
         query_results = "SELECT COUNT(*), COUNT(DISTINCT user_id), AVG(score) FROM game_results"
         params_results = []
         if start_dt and end_dt:
-            query_results += " WHERE finish_timestamp >= ? AND finish_timestamp < ?"
+            query_results += " WHERE datetime(finish_timestamp) >= datetime(?) AND datetime(finish_timestamp) < datetime(?)"
             params_results.extend([start_dt.isoformat(), end_dt.isoformat()])
 
         cursor.execute(query_results, params_results)

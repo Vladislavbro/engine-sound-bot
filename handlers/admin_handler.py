@@ -54,7 +54,8 @@ async def process_stats_period(callback: types.CallbackQuery):
     }.get(period, "Неизвестный период")
 
     avg_score = stats_data["average_score"]
-    avg_score_text = f"{avg_score:.1f}" if avg_score is not None and avg_score > 0 else "-" # Форматируем с 1 знаком после запятой
+    # Исправляем форматирование: показываем 0.0, если средний балл равен 0
+    avg_score_text = f"{avg_score:.1f}" if avg_score is not None else "-"
 
     response_text = (
         f"📊 **Статистика за период: {period_text}**\n\n"
