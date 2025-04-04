@@ -30,4 +30,18 @@ def get_play_again_keyboard() -> InlineKeyboardMarkup:
     builder.row(
         InlineKeyboardButton(text="Сыграть ещё", callback_data="play_again")
     )
+    return builder.as_markup()
+
+# --- Добавлено: Клавиатура для выбора периода статистики ---
+def stats_period_keyboard() -> InlineKeyboardMarkup:
+    """Создает инлайн-клавиатуру для выбора периода статистики."""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="📊 Сегодня", callback_data="stats:today"),
+        InlineKeyboardButton(text="📈 Вчера", callback_data="stats:yesterday")
+    )
+    builder.row(
+        InlineKeyboardButton(text="🗓️ 7 дней", callback_data="stats:7days"),
+        InlineKeyboardButton(text="🌍 Всё время", callback_data="stats:all")
+    )
     return builder.as_markup() 

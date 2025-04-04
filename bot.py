@@ -13,6 +13,7 @@ from config import BOT_TOKEN
 from handlers.start_handler import start_router
 from handlers.game_handler import game_router
 from handlers.callback_handler import callback_router
+from handlers.admin_handler import admin_router
 # --- Добавлено: Импорт инициализации БД --- H
 from database import init_db
 
@@ -28,6 +29,7 @@ async def main() -> None:
     dp = Dispatcher(storage=storage)
 
     # Подключаем роутеры
+    dp.include_router(admin_router)
     dp.include_router(start_router)
     dp.include_router(game_router)
     dp.include_router(callback_router)

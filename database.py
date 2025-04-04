@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import sqlite3
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 DATABASE_NAME = "stats.db"
 
@@ -86,7 +86,112 @@ def log_game_result(start_id: int, user_id: int, score: int, total_questions: in
         if conn:
             conn.close()
 
-# Пример функции для получения статистики (можно добавить позже)
-# def get_user_stats(user_id: int):
-#     # ... (код для запроса статистики из БД) ...
-#     pass 
+# --- Добавлено: Функции для получения статистики ---
+
+def _get_time_range(period: str) -> tuple[datetime | None, datetime | None]:
+    """Возвращает начальную и конечную дату для заданного периода."""
+    now = datetime.now()
+    if period == "today":
+        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = start_date + timedelta(days=1)
+    elif period == "yesterday":
+        end_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = end_date - timedelta(days=1)
+    elif period == "7days":
+        end_date = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1) # Включая сегодня
+        start_date = end_date - timedelta(days=7)
+    elif period == "all":
+        start_date = None
+        end_date = None
+    else:
+        raise ValueError(f"Неизвестный период: {period}")
+    return start_date, end_date
+
+def get_stats(period: str = "all") -> dict:
+    """
+    Собирает статистику по играм за указанный период.
+
+    Args:
+        period (str): Период для сбора статистики ("today", "yesterday", "7days", "all").
+                       По умолчанию "all".
+
+    Returns:
+        dict: Словарь со статистикой:
+              {
+                  'total_starts': int,
+                  'unique_starters': int,
+                  'total_finishes': int,
+                  'unique_finishers': int,
+                  'average_score': float | None
+              }
+    """
+    conn = None
+    try:
+        start_dt, end_dt = _get_time_range(period)
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+
+        stats = {
+            "total_starts": 0,
+            "unique_starters": 0,
+            "total_finishes": 0,
+            "unique_finishers": 0,
+            "average_score": None
+        }
+
+        # --- Подсчет стартов ---
+        query_starts = "SELECT COUNT(*), COUNT(DISTINCT user_id) FROM game_starts"
+        params_starts = []
+        if start_dt and end_dt:
+            query_starts += " WHERE start_timestamp >= ? AND start_timestamp < ?" # Используем >= и < для полуинтервала
+            params_starts.extend([start_dt.isoformat(), end_dt.isoformat()])
+
+        cursor.execute(query_starts, params_starts)
+        result_starts = cursor.fetchone()
+        if result_starts:
+            stats["total_starts"] = result_starts[0]
+            stats["unique_starters"] = result_starts[1]
+
+        # --- Подсчет финишей и среднего балла ---
+        query_results = "SELECT COUNT(*), COUNT(DISTINCT user_id), AVG(score) FROM game_results"
+        params_results = []
+        if start_dt and end_dt:
+            query_results += " WHERE finish_timestamp >= ? AND finish_timestamp < ?"
+            params_results.extend([start_dt.isoformat(), end_dt.isoformat()])
+
+        cursor.execute(query_results, params_results)
+        result_results = cursor.fetchone()
+        if result_results:
+            stats["total_finishes"] = result_results[0]
+            stats["unique_finishers"] = result_results[1]
+            # AVG вернет None, если нет строк, соответствующих WHERE
+            stats["average_score"] = result_results[2] if result_results[2] is not None else 0
+
+        logging.info(f"Статистика за период '{period}' ({start_dt} - {end_dt}): {stats}")
+        return stats
+
+    except sqlite3.Error as e:
+        logging.error(f"Ошибка SQLite при получении статистики за период '{period}': {e}")
+        # Возвращаем пустую статистику или пробрасываем исключение?
+        # Пока вернем пустую
+        return {
+            "total_starts": 0,
+            "unique_starters": 0,
+            "total_finishes": 0,
+            "unique_finishers": 0,
+            "average_score": None
+        }
+    except ValueError as e:
+        logging.error(f"Ошибка при расчете диапазона времени для статистики: {e}")
+        # Возвращаем пустую статистику при неверном периоде
+        return {
+            "total_starts": 0,
+            "unique_starters": 0,
+            "total_finishes": 0,
+            "unique_finishers": 0,
+            "average_score": None
+        }
+    finally:
+        if conn:
+            conn.close()
+
